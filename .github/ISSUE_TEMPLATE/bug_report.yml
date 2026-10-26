@@ -1,0 +1,65 @@
+name: Bug report
+description: Something in respawn is not working as expected
+labels: ["kind/bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        **Security issues must not be reported here.** Use [private vulnerability reporting](https://github.com/bblaker/respawn/security/advisories/new) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include the exact error messages or unexpected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce it?
+      description: Minimal steps, ideally starting from a fresh cluster.
+    validations:
+      required: true
+  - type: textarea
+    id: manifest
+    attributes:
+      label: GameServer manifest
+      description: The `GameServer` (and `GameServerBackup`, if relevant) you applied. **Remove any secrets.**
+      render: yaml
+  - type: textarea
+    id: status
+    attributes:
+      label: Status and events
+      description: Output of `kubectl describe gameserver <name>` and relevant operator logs.
+      render: text
+  - type: input
+    id: respawn-version
+    attributes:
+      label: respawn version
+      placeholder: v0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: input
+    id: k8s-version
+    attributes:
+      label: Kubernetes distribution and version
+      placeholder: k3s v1.31.4+k3s1
+    validations:
+      required: true
+  - type: dropdown
+    id: game
+    attributes:
+      label: Game
+      options:
+        - Minecraft
+        - Factorio
+        - Not game-specific
+    validations:
+      required: true

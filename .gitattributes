@@ -1,0 +1,6 @@
+* text=auto eol=lf
+
+# Generated code: collapse in diffs and exclude from language stats
+zz_generated.*.go linguist-generated=true
+config/crd/bases/*.yaml linguist-generated=true
+config/rbac/role.yaml linguist-generated=true
