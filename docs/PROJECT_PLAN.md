@@ -147,7 +147,7 @@ flowchart LR
 
 | Component | Binary / image | Responsibility |
 | --- | --- | --- |
-| **Operator** | `cmd/manager` → `ghcr.io/bblaker/respawn` | Reconciles all CRDs; polls player counts; orchestrates sleep, wake, backup, restore |
+| **Operator** | `cmd` → `ghcr.io/bblaker/respawn` | Reconciles all CRDs; polls player counts; orchestrates sleep, wake, backup, restore |
 | **Waker** | `cmd/waker` → `ghcr.io/bblaker/respawn-waker` | Holds the game port while the server sleeps; answers status pings; requests a wake on a real join attempt |
 | **Backup job** | upstream `restic` image, pinned by digest | Runs `restic backup`, `restore`, and `forget --prune` against the PVC |
 | **Game pod** | upstream game image, pinned by digest | Runs the actual game |
@@ -158,7 +158,7 @@ Standard Kubebuilder v4 layout:
 
 ```
 api/v1alpha1/            CRD Go types, markers, CEL rules
-cmd/manager/             operator entrypoint
+cmd/main.go              operator entrypoint (Kubebuilder's location, kept so the CLI can still scaffold)
 cmd/waker/               waker entrypoint
 internal/controller/     GameServer, GameServerBackup, BackupRepository reconcilers
 internal/game/           Adapter interface + registry
@@ -582,15 +582,16 @@ keep runs under about 15 minutes.
 
 - `gofmt`, `go vet`, `golangci-lint` (including `gosec`, `errcheck`,
   `staticcheck`, `revive`)
-- `make generate manifests && git diff --exit-code` so generated code and CRDs
-  are never stale
-- unit + envtest with `-race` and a coverage threshold of **80% on
-  `internal/`**, with generated code excluded
+- `make verify` (regenerates code and manifests, checks `go mod tidy`, fails
+  on any difference) so generated code and CRDs are never stale
+- unit + envtest with `-race`; coverage of `internal/` is reported from M1 and
+  gated at **80%** from M2, when there is real logic to cover
 - short fuzz run (30s per target) on PRs that touch `internal/protocol/` or
   `cmd/waker/`
 - `kubeconform` and `kube-linter` on rendered manifests and the Helm chart
-- e2e smoke on PRs labeled `e2e` or touching `internal/controller/`; full
-  suite nightly against the three most recent k3s minor versions
+- e2e on every PR while the suite takes only a few minutes; once it grows,
+  PRs run a smoke subset and the full suite runs nightly against the three
+  most recent k3s minor versions
 
 ## 7. Security
 
@@ -640,9 +641,12 @@ embedded network policy controller, so these are enforced out of the box.
 
 ### 7.4 Secure development lifecycle
 
-- **CI security tooling:** CodeQL (Go), `gosec` through golangci-lint,
-  `govulncheck`, Trivy image scan (fail on fixable High/Critical), gitleaks
-  secret scanning, OpenSSF Scorecard.
+- **CI security tooling:** CodeQL (Go, `security-extended` queries),
+  `govulncheck`, dependency review on PRs, and OpenSSF Scorecard (from M1);
+  `gosec` through golangci-lint (M2); Trivy image scan, failing on fixable
+  High/Critical, once images are published (M7).
+- **Secret scanning:** GitHub secret scanning with push protection, which is
+  free for public repositories, instead of gitleaks.
 - **Repository settings:** branch protection on `main` (required checks,
   required review, no force-push), private vulnerability reporting enabled,
   Dependabot security updates enabled, least-privilege `permissions:` in every
@@ -691,11 +695,12 @@ embedded network policy controller, so these are enforced out of the box.
 
 | Workflow | Trigger | Jobs |
 | --- | --- | --- |
-| `ci.yml` | push, PR | lint · generate-check · unit+envtest (coverage) · build (amd64, arm64) · short fuzz · kubeconform |
-| `e2e.yml` | PR with label or controller changes; nightly | k3d cluster · deploy · Ginkgo e2e · upload artifacts (logs, `kubectl get -A -o yaml`) on failure |
-| `security.yml` | push, PR, weekly | CodeQL · govulncheck · Trivy · gitleaks · Scorecard |
-| `fuzz-nightly.yml` | nightly | 10 min per fuzz target; new crashers opened as issues |
-| `release.yml` | tag `v*` | ko build multi-arch · cosign sign · SBOM and provenance attest · Helm chart to OCI · `install.yaml` and CRDs as release assets · GitHub release from changelog |
+| `ci.yml` | push to `main`, PR | lint · verify (generated files, `go mod tidy`) · unit+envtest (coverage summary and artifact) · build (amd64, arm64) · short fuzz (M3) · kubeconform (M2) |
+| `e2e.yml` | push to `main`, PR, nightly, manual | k3d cluster · deploy · Ginkgo e2e · upload artifacts (logs, cluster state) on failure |
+| `security.yml` | push to `main`, PR, weekly | CodeQL · govulncheck · dependency review (PRs) · Trivy (M7) |
+| `scorecard.yml` | push to `main`, weekly, ruleset changes | OpenSSF Scorecard, published, with SARIF to code scanning |
+| `fuzz-nightly.yml` (M3) | nightly | 10 min per fuzz target; new crashers opened as issues |
+| `release.yml` (M7) | tag `v*` | ko build multi-arch · cosign sign · SBOM and provenance attest · Helm chart to OCI · `install.yaml` and CRDs as release assets · GitHub release from changelog |
 | `docs.yml` (M7) | push to `main`, PR touching `docs/` or `api/` | MkDocs build (strict, link check) · generate API reference · deploy to Cloudflare Pages (preview on PR, production on `main`) |
 
 ### 9.2 Versioning and releases
@@ -717,11 +722,14 @@ embedded network policy controller, so these are enforced out of the box.
 
 ### 9.4 Developer experience
 
-- `make dev-cluster` creates a k3d cluster with a local registry and MinIO.
-- `make deploy` builds with `ko` straight into the k3d registry.
+- `make dev-cluster` creates a k3d cluster (`respawn-dev`) on a pinned k3s
+  image, with Traefik disabled. MinIO is added in M5.
+- `make dev-deploy` builds the image with `ko` into the local Docker daemon,
+  imports it into the cluster with `k3d image import`, and deploys. No local
+  registry is needed.
 - `make run` runs the operator locally. Player polling needs pod network
   access, so `--dev-port-forward` mode tunnels to pods; otherwise use
-  `make deploy`.
+  `make dev-deploy`.
 - Sample manifests in `config/samples/` for every kind and game.
 
 ### 9.5 Documentation
@@ -760,13 +768,17 @@ criteria passing in CI.
 
 ### M1: Scaffold and CI (S)
 
-- [ ] `kubebuilder init --domain bblaker.com --repo github.com/bblaker/respawn`
-- [ ] `kubebuilder create api` for `GameServer`, `GameServerBackup`,
-      `BackupRepository` (types only, empty reconcilers)
-- [ ] Makefile targets from CONTRIBUTING; tools pinned into `./bin`
-- [ ] `ci.yml` and `security.yml`; golangci-lint config; coverage reporting
-- [ ] k3d dev cluster target; `ko` build; distroless images
-- [ ] `docs/adr/` with the decisions in section 12 written up
+- [x] `kubebuilder init --domain bblaker.com --repo github.com/bblaker/respawn`
+      (Kubebuilder v4.16.0)
+- [x] `kubebuilder create api` for `GameServer`, `GameServerBackup`,
+      `BackupRepository`: full v1alpha1 types with OpenAPI validation and
+      defaults (CEL rules are M2), empty reconcilers, envtest schema specs
+- [x] Makefile targets from CONTRIBUTING; tools pinned into `./bin`
+- [x] `ci.yml`, `e2e.yml`, `security.yml`, `scorecard.yml`; golangci-lint
+      config; coverage reporting
+- [x] k3d dev cluster target; `ko` build on a minimal non-root base image
+      (Chainguard static, see ADR 9)
+- [x] `docs/adr/` with the decisions in section 12 written up
 
 **Exit:** `make lint test` green in CI; operator deploys to k3d and logs
 "started".
@@ -883,7 +895,7 @@ published on bblaker.com.
 
 ## 12. Decision log
 
-These become full ADRs in `docs/adr/` during M1.
+Each decision has a full record in [`docs/adr/`](adr/README.md).
 
 | # | Decision | Alternatives | Why |
 | --- | --- | --- | --- |
@@ -895,7 +907,7 @@ These become full ADRs in `docs/adr/` during M1.
 | D6 | Operator polls players directly | Sidecar exporter; parsing game logs | No changes to upstream images; state transitions stay in one place; polling cost is trivial at this scale |
 | D7 | The operator creates backups on schedule instead of using a CronJob | Kubernetes CronJob | Backups need quiesce and resume coordination with the live server, which a CronJob cannot do |
 | D8 | Server-side apply for owned objects | Get, mutate, update | Correct field ownership, fewer conflicts, cleaner idempotency |
-| D9 | `ko` for images | Dockerfile + buildx | Fast reproducible multi-arch Go builds on distroless, with SBOMs built in |
+| D9 | `ko` for images, on Chainguard's static base | Dockerfile + buildx; Google distroless base | Fast reproducible multi-arch Go builds with SBOMs built in; Chainguard avoids ko sending a stale local `gcloud` login to gcr.io |
 | D10 | Apache-2.0 license | MIT; MPL-2.0 | The Kubernetes ecosystem norm; explicit patent grant |
 | D11 | API group `respawn.bblaker.com` | A neutral domain; `*.io` vanity domain | Conventional (a domain the author controls); changing it later is a breaking change, so it is fixed from M2 |
 | D12 | One endpoint (Service) per server; no hostname routing in v0.1 | Shared port with Minecraft hostname routing (mc-router) | Keeps the waker and selector flip simple, and works for Factorio (UDP has no hostname). With k3s ServiceLB, servers share node IPs and need distinct ports (`service.port`); distinct IPs need MetalLB or kube-vip. Both are documented |

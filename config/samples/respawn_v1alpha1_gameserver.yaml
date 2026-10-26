@@ -1,0 +1,23 @@
+apiVersion: respawn.bblaker.com/v1alpha1
+kind: GameServer
+metadata:
+  labels:
+    app.kubernetes.io/name: respawn
+    app.kubernetes.io/managed-by: kustomize
+  name: gameserver-sample
+spec:
+  minecraft:
+    # Setting this to true means you accept the Minecraft EULA: https://www.minecraft.net/eula
+    eula: true
+    version: "1.21.4"
+    type: PAPER
+    memory: 2Gi
+  storage:
+    size: 10Gi
+  backup:
+    repositoryRef:
+      name: backuprepository-sample
+    schedule: "0 4 * * *"
+    retention:
+      keepDaily: 7
+      keepWeekly: 4

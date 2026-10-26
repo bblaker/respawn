@@ -7,9 +7,10 @@ scheduling, persistence, backups, and **scale-to-zero**: the server sleeps when
 nobody is online and wakes up when someone tries to join.
 
 > [!WARNING]
-> **Status: design phase.** Nothing here is ready to install yet. The API below
-> is the *planned* `v1alpha1` shape and will change. See the
-> [project plan](docs/PROJECT_PLAN.md) for the roadmap.
+> **Status: early development.** The `v1alpha1` API types and project scaffold
+> exist, but the controllers do not do anything yet, so nothing here is ready to
+> install. The API will change. See the [project plan](docs/PROJECT_PLAN.md) for
+> the roadmap.
 
 ## Why
 
@@ -88,6 +89,7 @@ Go · [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime
 
 - [Project plan](docs/PROJECT_PLAN.md): architecture, API design, milestones,
   testing and security strategy
+- [Architecture decision records](docs/adr/README.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Code of conduct](CODE_OF_CONDUCT.md)

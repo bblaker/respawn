@@ -22,30 +22,33 @@ You will need:
 | Tool                                   | Used for                           |
 | -------------------------------------- | ---------------------------------- |
 | Go (version in `go.mod`)               | building and testing               |
-| Docker or another container runtime    | images and the local cluster       |
-| [k3d](https://k3d.io/)                 | local k3s cluster for e2e tests    |
+| Docker                                 | the local k3d cluster and images   |
 | kubectl                                | talking to the cluster             |
 | make                                   | all workflows below                |
 
-Everything else (controller-gen, envtest binaries, golangci-lint, kustomize) is
-installed into `./bin` by the Makefile at pinned versions, so you do not need
-to install it globally.
+Everything else (controller-gen, envtest binaries, golangci-lint, kustomize,
+ko, and k3d) is installed into `./bin` by the Makefile at pinned versions, so
+you do not need to install it globally.
 
 ### Common tasks
-
-> These targets arrive with the Kubebuilder scaffold in milestone M1.
 
 ```sh
 make help            # list all targets
 make generate        # regenerate deepcopy code
 make manifests       # regenerate CRDs and RBAC from markers
+make verify          # fail if generated files or go.mod are out of date
 make lint            # golangci-lint
 make test            # unit + envtest integration tests, with -race
-make dev-cluster     # create a local k3d cluster
+make image           # build the operator image into local Docker (ko.local/respawn:dev)
+make dev-cluster     # create the local k3d cluster (respawn-dev)
+make dev-deploy      # build, import, and deploy the operator into respawn-dev
 make run             # run the operator locally against the current kubeconfig
-make deploy          # build, load, and deploy the operator into k3d
-make test-e2e        # end-to-end tests against k3d (slow)
+make test-e2e        # end-to-end tests on a throwaway k3d cluster (respawn-e2e)
 ```
+
+`make dev-cluster` and `make test-e2e` add their cluster to your kubeconfig
+and switch the current context to it, as k3d does by default. `make
+test-e2e` deletes its cluster when the tests pass.
 
 ## Making changes
 
