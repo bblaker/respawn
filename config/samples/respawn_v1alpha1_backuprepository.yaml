@@ -1,0 +1,20 @@
+apiVersion: respawn.bblaker.com/v1alpha1
+kind: BackupRepository
+metadata:
+  labels:
+    app.kubernetes.io/name: respawn
+    app.kubernetes.io/managed-by: kustomize
+  name: backuprepository-sample
+spec:
+  s3:
+    endpoint: https://s3.us-west-004.backblazeb2.com
+    bucket: my-respawn-backups
+    prefix: home-cluster
+  # Secrets in the same namespace. Create them before the operator needs them:
+  #   kubectl create secret generic b2-credentials \
+  #     --from-literal=AWS_ACCESS_KEY_ID=... --from-literal=AWS_SECRET_ACCESS_KEY=...
+  #   kubectl create secret generic restic-password --from-literal=RESTIC_PASSWORD=...
+  credentialsSecretRef:
+    name: b2-credentials
+  encryptionSecretRef:
+    name: restic-password

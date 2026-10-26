@@ -1,0 +1,6 @@
+## Append samples of your project ##
+resources:
+- respawn_v1alpha1_gameserver.yaml
+- respawn_v1alpha1_gameserverbackup.yaml
+- respawn_v1alpha1_backuprepository.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

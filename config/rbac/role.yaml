@@ -1,0 +1,38 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - respawn.bblaker.com
+  resources:
+  - backuprepositories
+  - gameserverbackups
+  - gameservers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - respawn.bblaker.com
+  resources:
+  - backuprepositories/finalizers
+  - gameserverbackups/finalizers
+  - gameservers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - respawn.bblaker.com
+  resources:
+  - backuprepositories/status
+  - gameserverbackups/status
+  - gameservers/status
+  verbs:
+  - get
+  - patch
+  - update

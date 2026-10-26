@@ -1,0 +1,9 @@
+apiVersion: respawn.bblaker.com/v1alpha1
+kind: GameServerBackup
+metadata:
+  labels:
+    app.kubernetes.io/name: respawn
+    app.kubernetes.io/managed-by: kustomize
+  name: gameserverbackup-sample
+spec:
+  gameServerName: gameserver-sample
