@@ -1,0 +1,48 @@
+# Build output
+/bin/
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test output
+*.test
+*.out
+cover.out
+coverage.*
+/testbin/
+/test/e2e/artifacts/
+
+# Fuzzing corpus produced locally (commit interesting cases to testdata/ instead)
+/**/testdata/fuzz/**/cache/
+
+# Go workspaces are per-developer
+go.work
+go.work.sum
+
+# Local cluster and credentials. Never commit these.
+*.kubeconfig
+kubeconfig
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Game data and backups from local testing
+/worlds/
+*.tar.zst
+*.tar.gz
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Agent workspace scratch
+.context/
